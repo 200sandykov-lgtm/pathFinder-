@@ -5,6 +5,8 @@ namespace fs = std::filesystem;
 
 int main()
 {
+//part 1 start
+
     const fs::path root = "C:/";
     const fs::path index_dir = "C:/Users/200sa/AppData/Local/PathFinder";
     error_code ec;
@@ -87,6 +89,48 @@ int main()
         cout << "Indexed paths: " << count << '\n';
         cout << "Scan errors: " << errors << '\n';
         ofstream flag(marker);
+    }
+        //part 1 end 
+        //part 2 start
+
+    ifstream file1("C:/Users/200sa/AppData/Local/PathFinder/paths.txt");
+    if (!file1.is_open())
+    {
+        cerr<< "cannot open the file";
+        return 1;
+    }
+
+    char ch;
+    int part = 0;
+    class Part
+    {
+        public:
+            int part_number;
+            string part_name;
+            Part (string part_name, int part_number): 
+                part_name(part_name), part_number(part_number)
+                {}
+    };
+
+    std::vector <Part> part_storage;
+    while (file1.get(ch))
+    {
+        if (ch == '\n' || ch == '\r')
+        {
+            continue;
+        }   
+
+        string variable;
+        
+        while (!ch == '\\') 
+        {
+            variable += ch;
+        }
+        if (ch == '\\')
+        {
+            part++;
+        }
+        part_storage.push_back(Part(variable, part));
     }
     return 0;
 }
