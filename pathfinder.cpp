@@ -150,18 +150,22 @@ int main()
 //part 3 start
     ofstream index_file("index.idx");
 
+    if (!index_file.is_open())
+    {
+        cerr << "Cannot create index.idx";
+        return 1;
+    }
+
     for (const auto& path : path_storage)
     {
         if (path.empty())
             continue;
 
-    // Получаем название последнего Part
-        string key = path.back().part_name;
-
     // Записываем ключ
+        string key = path.back().part_name;
         index_file << key << '\n';
 
-    // Восстанавливаем полный путь
+    // Восстанавливаем путь
         for (size_t i = 0; i < path.size(); i++)
         {
             index_file << path[i].part_name;
@@ -170,11 +174,15 @@ int main()
             {
                 index_file << '\\';
             }
-        }
-    }
+        }   
 
-        index_file << '\n';
+    // Переход к следующей записи
+    index_file << '\n';
+}
+
+index_file.close();
         //part 3 end
+        //i will go to check the index.idx file and see if it is created or not             
 
 
     return 0;
