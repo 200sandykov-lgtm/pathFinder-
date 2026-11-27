@@ -112,25 +112,70 @@ int main()
                 {}
     };
 
-    std::vector <Part> part_storage;
-    while (file1.get(ch))
-    {
-        if (ch == '\n' || ch == '\r')
-        {
-            continue;
-        }   
+    vector<Part> part_storage;
+    vector<vector<Part>> path_storage;
+    string line;
+    int part_number = 0;
 
+    while (getline(file1, line))
+    {
         string variable;
-        
-        while (!ch == '\\') 
+        part_number = 0;
+
+        for (char ch : line)
         {
-            variable += ch;
+            if (ch == '\\')
+            {
+                if (!variable.empty())
+                {
+                    part_storage.emplace_back(variable, part_number++);
+                    variable.clear();
+                }
+            }
+            else
+            {
+                variable += ch;
+            }
         }
-        if (ch == '\\')
+
+        if (!variable.empty())
         {
-            part++;
+            part_storage.emplace_back(variable, part_number);
         }
-        part_storage.push_back(Part(variable, part));
+
+        path_storage.push_back(part_storage);
+        part_storage.clear();
     }
+//part 2 end
+//part 3 start
+    ofstream index_file("index.idx");
+
+    for (const auto& path : path_storage)
+    {
+        if (path.empty())
+            continue;
+
+    // Получаем название последнего Part
+        string key = path.back().part_name;
+
+    // Записываем ключ
+        index_file << key << '\n';
+
+    // Восстанавливаем полный путь
+        for (size_t i = 0; i < path.size(); i++)
+        {
+            index_file << path[i].part_name;
+
+            if (i != path.size() - 1)
+            {
+                index_file << '\\';
+            }
+        }
+    }
+
+        index_file << '\n';
+        //part 3 end
+
+
     return 0;
 }
