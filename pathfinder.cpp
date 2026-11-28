@@ -16,6 +16,9 @@ struct IndexEntry
     uint64_t hash;
     uint64_t offset;
 };
+
+
+
 static_assert(sizeof(IndexEntry) == 16);
 
 uint64_t hash_key(string_view key)
@@ -69,28 +72,56 @@ int main()
     const fs::path search_marker = index_dir / "search_ready_v1.flag";
     error_code ec;
     fs::create_directories(index_dir, ec);
-    if (ec) { cerr << ec.message() << '\n'; return 1; }
+    if (ec) 
+    { 
+        cerr << ec.message() << '\n'; 
+        return 1; 
+    }
 
     // PART 1: Scan only if the saved snapshot is missing or incomplete.
     bool scanned = false;
+
+
     if (!fs::exists(marker) || !fs::exists(paths_file))
     {
         fs::remove(marker, ec);
-        if (ec) return 1;
+
+        if (ec) 
+        {
+            cerr << ec.message() << '\n'; 
+            return 1;
+        }
+
         fs::remove(search_marker, ec);
-        if (ec) return 1;
+
+        if (ec) 
+        {
+            cerr << ec.message() << '\n'; 
+            return 1;
+        }
+
         const fs::path temp = index_dir / "paths.tmp";
+
         ofstream out(temp, ios::binary | ios::trunc);
-        if (!out) { cerr << "Cannot create paths.tmp\n"; return 1; }
+
+        if (!out) 
+        {
+            cerr << "Cannot create paths.tmp\n"; 
+            return 1; 
+        }
 
         vector<fs::path> pending{root};
         size_t count = 0, errors = 0;
         while (!pending.empty())
         {
-            fs::path current_dir = move(pending.back());
+
+            fs::path current_dir = std::move(pending.back());
             pending.pop_back();
             fs::directory_iterator it(current_dir, ec), end;
-            if (ec) { ++errors; continue; }
+            if (ec) 
+            { 
+                ++errors; continue; 
+            }
             while (it != end)
             {
                 const fs::path path = it->path();
@@ -105,68 +136,132 @@ int main()
                     if (type_ec) ++errors;
                     else if (fs::is_directory(status)) pending.push_back(path);
                 }
+
                 it.increment(ec);
-                if (ec) { ++errors; break; }
+
+                if (ec) 
+                { 
+                    ++errors; 
+                    break; 
+                }
             }
         }
         out.close();
-        if (!out || !publish(temp, paths_file)) return 1;
+        if (!out || !publish(temp, paths_file)) 
+        {
+            cerr << "Cannot publish paths.tmp\n"; 
+            return 1;
+        }
+
         ofstream flag(marker);
+
         flag.close();
-        if (!flag) return 1;
+
+        if (!flag) 
+        {
+            cerr << "Cannot create marker file\n";
+            return 1;
+        }
+
         scanned = true;
+
         cout << "Indexed paths: " << count << " | Scan errors: " << errors << '\n';
     }
 
     // PARTS 2 AND 3: Build both indexes in one pass, only when needed.
     // Check timestamps as well, so a changed source invalidates the index.
-    bool ready = !scanned && fs::exists(search_marker) &&
-                 fs::exists(index_path) && fs::exists(search_path);
+    bool ready = !scanned && fs::exists(search_marker) && 
+        fs::exists(index_path) && fs::exists(search_path);
     if (ready)
     {
         auto source_time = fs::last_write_time(paths_file);
         auto index_time = fs::last_write_time(index_path);
         auto search_time = fs::last_write_time(search_path);
         ready = source_time <= index_time && index_time <= search_time &&
-                fs::file_size(search_path) % sizeof(IndexEntry) == 0;
+            fs::file_size(search_path) % sizeof(IndexEntry) == 0;
     }
     if (!ready)
     {
         fs::remove(search_marker, ec);
-        if (ec) return 1;
+
+        if (ec) 
+        {
+            cerr << "Cannot remove search marker\n";
+            return 1;
+        }
+
         ifstream source(paths_file, ios::binary);
         const fs::path index_temp = index_dir / "index.tmp";
+
         const fs::path search_temp = index_dir / "search.tmp";
+
         ofstream index(index_temp, ios::binary | ios::trunc);
-        if (!source || !index) { cerr << "Cannot open index build files\n"; return 1; }
+        if (!source || !index) 
+        {
+            cerr << "Cannot open index build files\n"; 
+            return 1; 
+        }
 
         vector<IndexEntry> entries;
+
         string path;
         uint64_t offset = 0;
+
         while (getline(source, path))
         {
             remove_cr(path);
-            if (path.empty()) continue;
+            if (path.empty()) 
+            {
+                continue;
+            }
+
             string_view key = filename_key(path);
-            if (key.empty()) continue;
+
+            if (key.empty()) 
+            {
+                continue;
+            }
+
             entries.push_back({hash_key(key), offset});
+
             index << key << '\n' << path << '\n';
-            if (!index) return 1;
+
+            if (!index) 
+            {
+                return 1;
+            }
+
             offset += key.size() + path.size() + 2;
         }
-        if (!source.eof() || source.bad()) return 1;
+
+        if (!source.eof() || source.bad()) 
+        {
+            return 1;
+        }
+
         index.close();
-        if (!index) return 1;
+
+        if (!index) 
+        {
+            return 1;
+        }
 
         sort(entries.begin(), entries.end(), [](const IndexEntry& a, const IndexEntry& b)
         {
             return a.hash != b.hash ? a.hash < b.hash : a.offset < b.offset;
         });
-        ofstream binary(search_temp, ios::binary | ios::trunc);
-        if (!binary) return 1;
+        ofstream binary (search_temp, ios::binary | ios::trunc);
+        if (!binary) 
+        {
+            return 1;
+        }
+        
         if (!entries.empty())
+        {
             binary.write(reinterpret_cast<const char*>(entries.data()),
                          static_cast<streamsize>(entries.size() * sizeof(IndexEntry)));
+        }
+
         binary.close();
         if (!binary || !publish(index_temp, index_path) || !publish(search_temp, search_path))
             return 1;
